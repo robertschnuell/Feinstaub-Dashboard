@@ -25,6 +25,7 @@ const TIME_RANGES = [
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
+  const [mounted, setMounted] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
@@ -35,6 +36,10 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
   const [selectedRange, setSelectedRange] = useState(TIME_RANGES[1]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Load app configuration
@@ -193,6 +198,11 @@ export default function Dashboard() {
       return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
     }
   };
+
+  // Prevent hydration mismatch - wait for client-side mount
+  if (!mounted) {
+    return null;
+  }
 
   // Login Screen
   if (!authenticated) {
