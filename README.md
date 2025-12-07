@@ -4,6 +4,15 @@ Real-time particle sensor monitoring dashboard for the [ELV-LW-SPM LoRaWAN® Par
 
 The ELV-LW-SPM is a high-quality particle sensor based on the Sensirion SPS30 sensor, transmitting data via LoRaWAN. It measures PM1.0, PM2.5, PM4.0, PM10 mass concentrations, particle counts, typical particle size, temperature, and humidity.
 
+## Screenshots
+
+<img src="public/images/screenshot_main_desktop.png" alt="Desktop Dashboard" width="100%">
+
+<p align="center">
+  <img src="public/images/screenshot_1_mobile.png" alt="Mobile View 1" width="45%">
+  <img src="public/images/screenshot_2_mobile.png" alt="Mobile View 2" width="45%">
+</p>
+
 ## Features
 
 - Real-time data visualization via WebSocket
