@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: feinstaub-backend
+    ports:
+      - "${BACKEND_PORT:-9176}:${BACKEND_PORT:-9176}"
+    environment:
+      - PORT=${BACKEND_PORT:-9176}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}
+      - APP_TITLE=${APP_TITLE}
+      - APP_SUBTITLE=${APP_SUBTITLE}
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - MQTT_TOPIC=${MQTT_TOPIC}
+    volumes:
+      - backend-data:/app
+    restart: unless-stopped
+    networks:
+      - feinstaub-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: feinstaub-frontend
+    ports:
+      - "${FRONTEND_PORT:-9177}:${FRONTEND_PORT:-9177}"
+    environment:
+      - PORT=${FRONTEND_PORT:-9177}
+      - NEXT_PUBLIC_BACKEND_URL=${BACKEND_URL:-http://backend:9176}
+      - NEXT_PUBLIC_FRONTEND_URL=${FRONTEND_URL:-http://localhost:9177}
+      - NEXT_PUBLIC_APP_TITLE=${APP_TITLE}
+      - NEXT_PUBLIC_APP_SUBTITLE=${APP_SUBTITLE}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - feinstaub-network
+
+volumes:
+  backend-data:
+    driver: local
+
+networks:
+  feinstaub-network:
+    driver: bridge
