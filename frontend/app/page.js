@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
+import '../lib/i18n';
 import { io } from "socket.io-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -13,15 +15,16 @@ const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || 'Feinstaub Monitoring';
 const APP_SUBTITLE = process.env.NEXT_PUBLIC_APP_SUBTITLE || 'Particle Sensor';
 
 const TIME_RANGES = [
-  { label: '1h', hours: 1, points: 6 },
-  { label: '6h', hours: 6, points: 36 },
-  { label: '24h', hours: 24, points: 144 },
-  { label: '7d', hours: 168, points: 1008 },
-  { label: '30d', hours: 720, points: 4320 },
-  { label: 'Alle', hours: null, points: null }
+  { label: 'range.1h', hours: 1, points: 6 },
+  { label: 'range.6h', hours: 6, points: 36 },
+  { label: 'range.24h', hours: 24, points: 144 },
+  { label: 'range.7d', hours: 168, points: 1008 },
+  { label: 'range.30d', hours: 720, points: 4320 },
+  { label: 'range.all', hours: null, points: null }
 ];
 
 export default function Dashboard() {
+  const { t, i18n } = useTranslation();
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
@@ -211,7 +214,7 @@ export default function Dashboard() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Passwort eingeben"
+                  placeholder={t('login.placeholder')}
                   className="w-full px-4 py-3 border border-[#2d2d2d] bg-white text-[#2d2d2d] focus:outline-none focus:ring-1 focus:ring-[#2d2d2d] font-light"
                   autoFocus
                 />
@@ -219,12 +222,12 @@ export default function Dashboard() {
               {passwordError && (
                 <Alert className="border-[#8b0000] bg-[#fff5f5]">
                   <AlertDescription className="text-[#8b0000] text-sm">
-                    Falsches Passwort
+                    {t('login.error')}
                   </AlertDescription>
                 </Alert>
               )}
               <Button type="submit" className="w-full bg-[#2d2d2d] text-white hover:bg-[#1a1a1a] font-light tracking-wider uppercase text-sm">
-                Anmelden
+                {t('login.button')}
               </Button>
             </form>
           </CardContent>
@@ -237,7 +240,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-pulse text-[#2d2d2d] mb-4 font-light tracking-wide">Lade Daten...</div>
+          <div className="animate-pulse text-[#2d2d2d] mb-4 font-light tracking-wide">{t('loading')}</div>
           {error && (
             <Alert className="border-[#8b0000] bg-[#fff5f5] max-w-md">
               <AlertDescription className="text-[#8b0000]">{error}</AlertDescription>
@@ -266,16 +269,24 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 px-3 h-9 bg-gray-50 border border-[#2d2d2d]">
                 <div className={`w-2 h-2 rounded-full ${connected ? 'bg-[#2d6d2d]' : 'bg-[#8b0000]'}`}></div>
                 <span className="text-xs text-[#2d2d2d] uppercase tracking-wide font-mono">
-                  {connected ? 'Live' : 'Offline'}
+                  {connected ? t('nav.live') : t('nav.offline')}
                 </span>
               </div>
+              <select
+                value={i18n.language}
+                onChange={(e) => i18n.changeLanguage(e.target.value)}
+                className="h-9 px-2 border border-[#2d2d2d] text-[#2d2d2d] bg-white text-xs uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#2d2d2d]"
+              >
+                <option value="en">EN</option>
+                <option value="de">DE</option>
+              </select>
               <Button 
                 onClick={handleLogout} 
                 variant="outline" 
                 size="sm"
                 className="h-9 border-[#2d2d2d] text-[#2d2d2d] hover:bg-[#2d2d2d] hover:text-white font-light text-xs uppercase tracking-wider"
               >
-                Abmelden
+                {t('nav.logout')}
               </Button>
             </div>
           </div>
@@ -319,7 +330,7 @@ export default function Dashboard() {
 
             <Card className="border-[#2d2d2d] bg-white shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-light text-[#666] uppercase tracking-wider">Temperatur</CardTitle>
+                <CardTitle className="text-xs font-light text-[#666] uppercase tracking-wider">{t('current.temperature')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl md:text-4xl font-light text-[#2d2d2d] tracking-tight font-mono">
@@ -331,7 +342,7 @@ export default function Dashboard() {
 
             <Card className="border-[#2d2d2d] bg-white shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-light text-[#666] uppercase tracking-wider">Luftfeuchtigkeit</CardTitle>
+                <CardTitle className="text-xs font-light text-[#666] uppercase tracking-wider">{t('current.humidity')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl md:text-4xl font-light text-[#2d2d2d] tracking-tight font-mono">
@@ -357,7 +368,7 @@ export default function Dashboard() {
                   : "border-[#2d2d2d] text-[#2d2d2d] hover:bg-[#2d2d2d] hover:text-white font-light uppercase tracking-wider"
               }
             >
-              {range.label}
+              {t(range.label)}
             </Button>
           ))}
         </div>
@@ -366,10 +377,10 @@ export default function Dashboard() {
         <Card className="border-[#2d2d2d] bg-white shadow-sm">
           <CardHeader className="border-b border-[#e5e5e5]">
             <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
-              Partikelmasse Verlauf
+              {t('chart.particleMass.title')}
             </CardTitle>
             <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
-              PM1.0, PM2.5, PM4.0, PM10 ({selectedRange.label}) • {selectedRange.points ? `~${selectedRange.points} Messwerte` : 'Alle Daten'} • 10-Min-Intervall
+              {selectedRange.points ? t('chart.particleMass.description', { range: t(selectedRange.label), points: selectedRange.points }) : t('chart.particleMass.descriptionAll', { range: t(selectedRange.label) })}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -389,14 +400,14 @@ export default function Dashboard() {
                 <YAxis 
                   stroke="#666"
                   style={{ fontSize: '11px', fontWeight: '300' }}
-                  label={{ value: 'μg/m³', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                  label={{ value: t('chart.label.massConcentration'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300' }} />
-                <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} name="PM1.0" />
-                <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} name="PM2.5" />
-                <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} name="PM4.0" />
-                <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} name="PM10" />
+                <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} name={t('chart.label.pm1')} />
+                <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} name={t('chart.label.pm25')} />
+                <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} name={t('chart.label.pm4')} />
+                <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} name={t('chart.label.pm10')} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -406,10 +417,10 @@ export default function Dashboard() {
         <Card className="border-[#2d2d2d] bg-white shadow-sm">
           <CardHeader className="border-b border-[#e5e5e5]">
             <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
-              Partikelanzahl Verlauf
+              {t('chart.particleCount.title')}
             </CardTitle>
             <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
-              Partikel pro cm³ ({selectedRange.label}) • 10-Min-Intervall
+              {t('chart.particleCount.description', { range: t(selectedRange.label) })}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -429,13 +440,13 @@ export default function Dashboard() {
                 <YAxis 
                   stroke="#666"
                   style={{ fontSize: '11px', fontWeight: '300' }}
-                  label={{ value: 'Partikel/cm³', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                  label={{ value: t('chart.label.particleCount'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300' }} />
-                <Line type="monotone" dataKey="pm1_count_cm3" stroke="#2d6d2d" strokeWidth={2} dot={false} name="PM1.0 Count" />
-                <Line type="monotone" dataKey="pm2_5_count_cm3" stroke="#4d8d4d" strokeWidth={2} dot={false} name="PM2.5 Count" />
-                <Line type="monotone" dataKey="pm10_count_cm3" stroke="#6dad6d" strokeWidth={2} dot={false} name="PM10 Count" />
+                <Line type="monotone" dataKey="pm1_count_cm3" stroke="#2d6d2d" strokeWidth={2} dot={false} name={t('chart.label.pm1Count')} />
+                <Line type="monotone" dataKey="pm2_5_count_cm3" stroke="#4d8d4d" strokeWidth={2} dot={false} name={t('chart.label.pm25Count')} />
+                <Line type="monotone" dataKey="pm10_count_cm3" stroke="#6dad6d" strokeWidth={2} dot={false} name={t('chart.label.pm10Count')} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -445,10 +456,10 @@ export default function Dashboard() {
         <Card className="border-[#2d2d2d] bg-white shadow-sm">
           <CardHeader className="border-b border-[#e5e5e5]">
             <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
-              Typische Partikelgröße
+              {t('chart.particleSize.title')}
             </CardTitle>
             <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
-              Durchschnittliche Größe ({selectedRange.label}) • 10-Min-Intervall
+              {t('chart.particleSize.description', { range: t(selectedRange.label) })}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
@@ -468,10 +479,10 @@ export default function Dashboard() {
                 <YAxis 
                   stroke="#666"
                   style={{ fontSize: '11px', fontWeight: '300' }}
-                  label={{ value: 'μm', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                  label={{ value: t('chart.label.size'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line type="monotone" dataKey="typical_particle_size" stroke="#2d2d2d" strokeWidth={2} dot={false} name="Partikelgröße" />
+                <Line type="monotone" dataKey="typical_particle_size" stroke="#2d2d2d" strokeWidth={2} dot={false} name={t('chart.label.particleSize')} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -481,12 +492,12 @@ export default function Dashboard() {
         <div className="grid md:grid-cols-2 gap-4">
           <Card className="border-[#2d2d2d] bg-white shadow-sm">
             <CardHeader className="border-b border-[#e5e5e5]">
-              <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
-                Temperatur
-              </CardTitle>
-              <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
-                Verlauf ({selectedRange.label}) • 10-Min-Intervall
-              </CardDescription>
+            <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
+              {t('chart.temperature.title')}
+            </CardTitle>
+            <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
+              {t('chart.temperature.description', { range: t(selectedRange.label) })}
+            </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <ChartContainer config={{ temp: { color: "#8b4513" } }} className="w-full h-[200px] md:h-[250px]">
@@ -505,7 +516,7 @@ export default function Dashboard() {
                   <YAxis 
                     stroke="#666"
                     style={{ fontSize: '11px', fontWeight: '300' }}
-                    label={{ value: '°C', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                    label={{ value: t('chart.label.temperature'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="temperature_C" stroke="#8b4513" strokeWidth={2} dot={false} />
@@ -516,12 +527,12 @@ export default function Dashboard() {
 
           <Card className="border-[#2d2d2d] bg-white shadow-sm">
             <CardHeader className="border-b border-[#e5e5e5]">
-              <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
-                Luftfeuchtigkeit
-              </CardTitle>
-              <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
-                Verlauf ({selectedRange.label}) • 10-Min-Intervall
-              </CardDescription>
+            <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
+              {t('chart.humidity.title')}
+            </CardTitle>
+            <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
+              {t('chart.humidity.description', { range: t(selectedRange.label) })}
+            </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <ChartContainer config={{ humidity: { color: "#4682b4" } }} className="w-full h-[200px] md:h-[250px]">
@@ -540,7 +551,7 @@ export default function Dashboard() {
                   <YAxis 
                     stroke="#666"
                     style={{ fontSize: '11px', fontWeight: '300' }}
-                    label={{ value: '%', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                    label={{ value: t('chart.label.humidity'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="humidity_rel" stroke="#4682b4" strokeWidth={2} dot={false} />
@@ -552,21 +563,21 @@ export default function Dashboard() {
 
         {/* Footer Info */}
         <div className="text-center text-[#999] text-xs py-8 border-t border-[#e5e5e5] tracking-wider">
-          <p className="font-mono uppercase">Last update: {currentData ? new Date(currentData.received_at).toLocaleString('de-DE') : '—'}</p>
+          <p className="font-mono uppercase">{t('footer.lastUpdate')}: {currentData ? new Date(currentData.received_at).toLocaleString(i18n.language === 'de' ? 'de-DE' : 'en-US') : '—'}</p>
           <p className="mt-3 text-[11px] leading-relaxed">
-            Dashboard for monitoring the{' '}
+            {t('footer.dashboard')}{' '}
             <a 
               href="https://de.elv.com/p/elv-lorawan-feinstaubsensor-elv-lw-spm-P160408/?itemId=160408" 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-[#2d2d2d] hover:underline"
             >
-              ELV-LW-SPM LoRaWAN® Particle Sensor
+              {t('footer.sensor')}
             </a>
-            {' '}with SPS30 sensor
+            {' '}{t('footer.with')}
           </p>
           <p className="mt-3 text-[10px] font-mono">
-            Made by{' '}
+            {t('footer.madeBy')}{' '}
             <a 
               href="https://rfws.dev" 
               target="_blank" 
@@ -575,7 +586,7 @@ export default function Dashboard() {
             >
               rfws.dev
             </a>
-            {' '}• MIT License
+            {' '}• {t('footer.license')}
           </p>
         </div>
       </main>

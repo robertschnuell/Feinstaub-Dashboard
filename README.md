@@ -18,6 +18,7 @@ The ELV-LW-SPM is a high-quality particle sensor based on the Sensirion SPS30 se
 - Real-time data visualization via WebSocket
 - Historical data storage with SQLite
 - Password authentication
+- **Multi-language support (English/German)** with automatic language detection
 - Responsive design with shadcn/ui components
 - 5 chart types: PM mass, PM count, particle size, temperature, humidity
 - Time range selection: 1h, 6h, 24h, 7d, 30d, all
