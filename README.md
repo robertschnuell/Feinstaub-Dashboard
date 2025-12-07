@@ -24,6 +24,211 @@ The ELV-LW-SPM is a high-quality particle sensor based on the Sensirion SPS30 se
 - Docker
 - Docker Compose
 
+## The Things Network Setup
+
+Before running the dashboard, configure your ELV-LW-SPM sensor in The Things Network:
+
+### 1. Register Device
+
+1. Log in to [The Things Network Console](https://console.cloud.thethings.network/)
+2. Select your application or create a new one
+3. Add your ELV-LW-SPM device with:
+   - **LoRaWAN version:** 1.0.x or 1.1
+   - **Regional Parameters:** RP001 Regional Parameters 1.0.3 revision A
+   - **Frequency plan:** Europe 863-870 MHz (SF9 for RX2)
+
+### 2. Configure Payload Formatter
+
+The sensor sends data on **fPort 10**. Add the following uplink decoder to your device or application:
+
+1. Navigate to **Payload formatters** → **Uplink**
+2. Select **Formatter type:** Custom JavaScript formatter
+3. Paste the decoder code:
+
+```javascript
+// ELV LoRaWAN Feinstaubsensor ELV-LW-SPM
+// Uplink decoder for TTN / The Things Stack
+// LoRaWAN port: 10
+
+function readUInt16BE(bytes, offset) {
+  return (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+function readInt32BE(bytes, offset) {
+  var value =
+    (bytes[offset] << 24) |
+    (bytes[offset + 1] << 16) |
+    (bytes[offset + 2] << 8) |
+    bytes[offset + 3];
+
+  if (value & 0x80000000) {
+    value = value - 0x100000000;
+  }
+  return value;
+}
+
+function decodeUplink(input) {
+  var bytes = input.bytes;
+  var fPort = input.fPort;
+
+  if (fPort !== 10) {
+    return {
+      data: {},
+      warnings: ["Unsupported fPort: " + fPort],
+      errors: []
+    };
+  }
+
+  var data = {};
+  var warnings = [];
+
+  if (bytes.length < 13) {
+    return {
+      data: {},
+      warnings: [],
+      errors: ["Payload too short: " + bytes.length + " bytes"]
+    };
+  }
+
+  // Byte 0: TX reason
+  var txReasonMap = {
+    0: "reserved",
+    1: "button",
+    2: "timer",
+    3: "joined"
+  };
+  data.tx_reason_code = bytes[0];
+  data.tx_reason = txReasonMap[bytes[0]] || "unknown";
+
+  // Bytes 1–2: supply voltage
+  if (bytes.length >= 3) {
+    var mv = readUInt16BE(bytes, 1);
+    data.supply_voltage_mV = mv;
+    data.supply_voltage_V = mv / 1000.0;
+  }
+
+  // Bytes 3–5: bootloader version
+  if (bytes.length >= 6) {
+    data.bootloader_version = {
+      major: bytes[3],
+      minor: bytes[4],
+      patch: bytes[5],
+      text: bytes[3] + "." + bytes[4] + "." + bytes[5]
+    };
+  }
+
+  // Bytes 6–8: firmware version
+  if (bytes.length >= 9) {
+    data.firmware_version = {
+      major: bytes[6],
+      minor: bytes[7],
+      patch: bytes[8],
+      text: bytes[6] + "." + bytes[7] + "." + bytes[8]
+    };
+  }
+
+  // Bytes 9–10: hardware version
+  if (bytes.length >= 11) {
+    var hwRaw = readUInt16BE(bytes, 9);
+    if (hwRaw === 0xffff) {
+      data.hardware_version_valid = false;
+    } else {
+      data.hardware_version_valid = true;
+      data.hardware_version = hwRaw;
+    }
+  }
+
+  // Byte 11: sensor mode
+  if (bytes.length >= 12) {
+    var sensorModeMap = {
+      1: "activated",
+      2: "deactivated"
+    };
+    data.sensor_mode_code = bytes[11];
+    data.sensor_mode = sensorModeMap[bytes[11]] || "unknown";
+  }
+
+  // Byte 12: update interval
+  if (bytes.length >= 13) {
+    data.update_interval_steps = bytes[12];
+    data.update_interval_s = bytes[12] * 30;
+    data.update_interval_min = (bytes[12] * 30) / 60.0;
+  }
+
+  // Sensor measurements (when active)
+  // Bytes 13–16: temperature
+  if (bytes.length >= 17) {
+    var tRaw = readInt32BE(bytes, 13);
+    data.temperature_C = tRaw / 1000.0;
+  }
+
+  // Bytes 17–20: humidity
+  if (bytes.length >= 21) {
+    var hRaw = readInt32BE(bytes, 17);
+    data.humidity_rel = hRaw / 1000.0;
+  }
+
+  function readScaledU16(offset, scale) {
+    if (bytes.length >= offset + 2) {
+      return readUInt16BE(bytes, offset) / scale;
+    }
+    return null;
+  }
+
+  // Mass concentrations
+  if (bytes.length >= 23) data.pm1_mass_ugm3 = readScaledU16(21, 100);
+  if (bytes.length >= 25) data.pm2_5_mass_ugm3 = readScaledU16(23, 100);
+  if (bytes.length >= 27) data.pm4_mass_ugm3 = readScaledU16(25, 100);
+  if (bytes.length >= 29) data.pm10_mass_ugm3 = readScaledU16(27, 100);
+
+  // Number concentrations
+  if (bytes.length >= 31) data.pm0_5_count_cm3 = readScaledU16(29, 100);
+  if (bytes.length >= 33) data.pm1_count_cm3 = readScaledU16(31, 100);
+  if (bytes.length >= 35) data.pm2_5_count_cm3 = readScaledU16(33, 100);
+  if (bytes.length >= 37) data.pm4_count_cm3 = readScaledU16(35, 100);
+  if (bytes.length >= 39) data.pm10_count_cm3 = readScaledU16(37, 100);
+
+  // Typical particle size
+  if (bytes.length >= 41) {
+    data.typical_particle_size = readScaledU16(39, 100);
+  }
+
+  return {
+    data: data,
+    warnings: warnings,
+    errors: []
+  };
+}
+```
+
+4. Click **Save changes**
+
+### 3. Get MQTT Credentials
+
+1. In TTN Console, navigate to **Integrations** → **MQTT**
+2. Note down:
+   - **Public address:** `eu1.cloud.thethings.network` (or your cluster)
+   - **Username:** Your application ID (e.g., `my-app@ttn`)
+3. Generate an API key:
+   - Go to **API keys** → **Add API key**
+   - Name: `mqtt-access`
+   - Rights: Select `Read application traffic`
+   - Click **Create API key** and copy the key
+
+### 4. Configure MQTT Topic
+
+The MQTT topic format is:
+```
+v3/{application-id}@ttn/devices/{device-id}/up
+```
+
+For all devices in your application, use:
+```
+v3/{application-id}@ttn/devices/+/up
+```
+
+Example: `v3/my-feinstaub-app@ttn/devices/+/up`
+
 ## Manual Setup
 
 ### Backend
