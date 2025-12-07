@@ -10,7 +10,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:9176';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || 'Feinstaub Monitoring';
 const APP_SUBTITLE = process.env.NEXT_PUBLIC_APP_SUBTITLE || 'Particle Sensor';
 
@@ -93,7 +93,8 @@ export default function Dashboard() {
       setError(null);
       
       setHistoricalData(prev => {
-        const updated = [...prev, data.historical];
+        const prevArray = Array.isArray(prev) ? prev : [];
+        const updated = [...prevArray, data.historical];
         if (selectedRange.hours) {
           const cutoffTime = new Date(Date.now() - selectedRange.hours * 60 * 60 * 1000);
           return updated.filter(entry => new Date(entry.time) >= cutoffTime);
@@ -141,7 +142,7 @@ export default function Dashboard() {
   const fetchCurrentData = async () => {
     try {
       const token = localStorage.getItem('dashboard_token');
-      const response = await fetch('/api/current', {
+      const response = await fetch(`${BACKEND_URL}/api/current`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -161,7 +162,7 @@ export default function Dashboard() {
   const fetchHistoricalData = async (hours) => {
     try {
       const token = localStorage.getItem('dashboard_token');
-      const url = hours ? `/api/historical?hours=${hours}` : '/api/historical?hours=87600';
+      const url = hours ? `${BACKEND_URL}/api/historical?hours=${hours}` : `${BACKEND_URL}/api/historical?hours=87600`;
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -169,7 +170,10 @@ export default function Dashboard() {
       });
       if (!response.ok) throw new Error('Fehler beim Laden');
       const data = await response.json();
-      setHistoricalData(data);
+      // Filter out entries with missing critical data (time must exist)
+      const dataArray = Array.isArray(data) ? data : [];
+      const validData = dataArray.filter(entry => entry && entry.time);
+      setHistoricalData(validData);
       setError(null);
     } catch (err) {
       console.error('Error loading historical data:', err);
@@ -414,10 +418,10 @@ export default function Dashboard() {
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300' }} />
-                <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} name={t('chart.label.pm1')} />
-                <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} name={t('chart.label.pm25')} />
-                <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} name={t('chart.label.pm4')} />
-                <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} name={t('chart.label.pm10')} />
+                <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm1')} />
+                <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm25')} />
+                <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm4')} />
+                <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm10')} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -454,9 +458,9 @@ export default function Dashboard() {
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300' }} />
-                <Line type="monotone" dataKey="pm1_count_cm3" stroke="#2d6d2d" strokeWidth={2} dot={false} name={t('chart.label.pm1Count')} />
-                <Line type="monotone" dataKey="pm2_5_count_cm3" stroke="#4d8d4d" strokeWidth={2} dot={false} name={t('chart.label.pm25Count')} />
-                <Line type="monotone" dataKey="pm10_count_cm3" stroke="#6dad6d" strokeWidth={2} dot={false} name={t('chart.label.pm10Count')} />
+                <Line type="monotone" dataKey="pm1_count_cm3" stroke="#2d6d2d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm1Count')} />
+                <Line type="monotone" dataKey="pm2_5_count_cm3" stroke="#4d8d4d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm25Count')} />
+                <Line type="monotone" dataKey="pm10_count_cm3" stroke="#6dad6d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm10Count')} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -492,7 +496,7 @@ export default function Dashboard() {
                   label={{ value: t('chart.label.size'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line type="monotone" dataKey="typical_particle_size" stroke="#2d2d2d" strokeWidth={2} dot={false} name={t('chart.label.particleSize')} />
+                <Line type="monotone" dataKey="typical_particle_size" stroke="#2d2d2d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.particleSize')} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -529,7 +533,7 @@ export default function Dashboard() {
                     label={{ value: t('chart.label.temperature'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="temperature_C" stroke="#8b4513" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="temperature_C" stroke="#8b4513" strokeWidth={2} dot={false} connectNulls={false} />
                 </LineChart>
               </ChartContainer>
             </CardContent>
@@ -564,7 +568,7 @@ export default function Dashboard() {
                     label={{ value: t('chart.label.humidity'), angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="humidity_rel" stroke="#4682b4" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="humidity_rel" stroke="#4682b4" strokeWidth={2} dot={false} connectNulls={false} />
                 </LineChart>
               </ChartContainer>
             </CardContent>

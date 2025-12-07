@@ -103,8 +103,9 @@ app.post('/api/auth', express.json(), (req, res) => {
   if (password === DASHBOARD_PASSWORD) {
     res.json({ 
       success: true,
+      token: password,
       title: process.env.APP_TITLE || 'Feinstaub Monitoring',
-      subtitle: process.env.APP_SUBTITLE || 'article Sensor'
+      subtitle: process.env.APP_SUBTITLE || 'Particle Sensor'
     });
   } else {
     res.status(401).json({ success: false, error: 'Invalid password' });
