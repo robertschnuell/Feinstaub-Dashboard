@@ -19,7 +19,6 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Configuration from .env
 const PORT = process.env.PORT || 9176;
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || 'feinstaub';
 const MQTT_HOST = process.env.MQTT_HOST;
@@ -27,11 +26,9 @@ const MQTT_USERNAME = process.env.MQTT_USERNAME;
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 const MQTT_TOPIC = process.env.MQTT_TOPIC;
 
-// Initialize SQLite database
 const dbPath = path.join(__dirname, 'feinstaub.db');
 const db = new Database(dbPath);
 
-// Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS sensor_data (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,12 +121,12 @@ const mqttClient = mqtt.connect(MQTT_HOST, {
 });
 
 mqttClient.on('connect', () => {
-  console.log('✅ Connected to The Things Network MQTT Broker');
+  console.log(' Connected to The Things Network MQTT Broker');
   mqttClient.subscribe(MQTT_TOPIC, (err) => {
     if (err) {
-      console.error('❌ Error subscribing to topic:', err);
+      console.error(' Error subscribing to topic:', err);
     } else {
-      console.log(`📡 Topic subscribed: ${MQTT_TOPIC}`);
+      console.log(` Topic subscribed: ${MQTT_TOPIC}`);
     }
   });
 });
@@ -137,12 +134,12 @@ mqttClient.on('connect', () => {
 mqttClient.on('message', (topic, message) => {
   try {
     const payload = JSON.parse(message.toString());
-    console.log('📨 New message received:', new Date().toISOString());
+    // console.log(' New message received:', new Date().toISOString());
     
     const decoded = payload.uplink_message?.decoded_payload;
     if (!decoded) return;
     
-    // In Datenbank speichern
+
     insertData.run(
       payload.received_at,
       decoded.pm1_mass_ugm3,
@@ -161,13 +158,12 @@ mqttClient.on('message', (topic, message) => {
     
     console.log('💾 Data saved to SQLite');
     
-    // Update cache
+
     currentDataCache = {
       received_at: payload.received_at,
       decoded_payload: decoded,
     };
     
-    // Sende Update an alle verbundenen Clients
     const historicalEntry = {
       time: payload.received_at,
       pm1_mass_ugm3: decoded.pm1_mass_ugm3,
@@ -205,11 +201,9 @@ mqttClient.on('reconnect', () => {
   console.log('🔄 MQTT client attempting to reconnect...');
 });
 
-// Socket.io Connection Handler
 io.on('connection', (socket) => {
   console.log('🔌 WebSocket client connected:', socket.id);
   
-  // Send current data on connection
   if (currentDataCache) {
     socket.emit('currentData', currentDataCache);
   } else {
@@ -353,10 +347,10 @@ app.get('/health', (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
-  console.log(`📊 API available at http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket available at ws://localhost:${PORT}`);
-  console.log(`🔐 Auth required with password: ${DASHBOARD_PASSWORD}`);
+  console.log(`Backend server running on port ${PORT}`);
+  console.log(`API available at http://localhost:${PORT}`);
+  console.log(`WebSocket available at ws://localhost:${PORT}`);
+  console.log(`Auth required with password: ${DASHBOARD_PASSWORD}`);
   console.log('\nEndpoints:');
   console.log('  GET /api/current      - Current sensor data (auth)');
   console.log('  GET /api/historical   - Historical data (auth) (query: ?hours=24)');
@@ -364,7 +358,7 @@ server.listen(PORT, () => {
   console.log('  GET /health           - Health check (public)');
 });
 
-// Graceful Shutdown
+// Shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Server wird heruntergefahren...');
   mqttClient.end();
