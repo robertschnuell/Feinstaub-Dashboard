@@ -203,6 +203,85 @@ export default function Dashboard() {
     }
   };
 
+  // Calculate daily averages grouped by day and hour (hourly averages from 00:00 each day)
+  const calculateDailyHourlyAverages = (data) => {
+    if (!Array.isArray(data) || data.length === 0) return [];
+    
+    const hourlyGroups = {};
+    
+    data.forEach(entry => {
+      if (!entry || !entry.time) return;
+      
+      const date = new Date(entry.time);
+      const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      const hour = date.getHours();
+      const hourKey = `${dayKey}-${hour.toString().padStart(2, '0')}`;
+      
+      if (!hourlyGroups[hourKey]) {
+        hourlyGroups[hourKey] = {
+          time: new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 0, 0).toISOString(),
+          dayKey,
+          hour,
+          values: []
+        };
+      }
+      
+      hourlyGroups[hourKey].values.push({
+        pm1: entry.pm1_mass_ugm3,
+        pm25: entry.pm2_5_mass_ugm3,
+        pm4: entry.pm4_mass_ugm3,
+        pm10: entry.pm10_mass_ugm3
+      });
+    });
+    
+    // Calculate averages for each hour
+    return Object.values(hourlyGroups).map(group => {
+      const avg = (arr, key) => {
+        const valid = arr.filter(v => v[key] != null);
+        return valid.length > 0 ? valid.reduce((sum, v) => sum + v[key], 0) / valid.length : null;
+      };
+      
+      return {
+        time: group.time,
+        pm1_mass_ugm3: avg(group.values, 'pm1'),
+        pm2_5_mass_ugm3: avg(group.values, 'pm25'),
+        pm4_mass_ugm3: avg(group.values, 'pm4'),
+        pm10_mass_ugm3: avg(group.values, 'pm10')
+      };
+    }).sort((a, b) => new Date(a.time) - new Date(b.time));
+  };
+
+  // Calculate today's average for each particle type
+  const calculateTodayAverage = (data) => {
+    if (!Array.isArray(data) || data.length === 0) return null;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayData = data.filter(entry => {
+      if (!entry || !entry.time) return false;
+      const entryDate = new Date(entry.time);
+      return entryDate >= today;
+    });
+    
+    if (todayData.length === 0) return null;
+    
+    const avg = (arr, key) => {
+      const valid = arr.filter(v => v[key] != null);
+      return valid.length > 0 ? valid.reduce((sum, v) => sum + v[key], 0) / valid.length : null;
+    };
+    
+    return {
+      pm1: avg(todayData, 'pm1_mass_ugm3'),
+      pm25: avg(todayData, 'pm2_5_mass_ugm3'),
+      pm4: avg(todayData, 'pm4_mass_ugm3'),
+      pm10: avg(todayData, 'pm10_mass_ugm3')
+    };
+  };
+
+  const dailyHourlyData = calculateDailyHourlyAverages(historicalData);
+  const todayAverage = calculateTodayAverage(historicalData);
+
   // Prevent hydration mismatch - wait for client-side mount
   if (!mounted) {
     return null;
@@ -270,7 +349,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white border-b border-[#2d2d2d] sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h1 className="text-2xl md:text-3xl font-light text-[#2d2d2d] tracking-wide">
                 {appConfig.title.toUpperCase()}
@@ -279,21 +358,23 @@ export default function Dashboard() {
                 {appConfig.subtitle}
               </p>
             </div>
-            <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex items-center gap-2 px-3 h-9 bg-gray-50 border border-[#2d2d2d]">
-                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-[#2d6d2d]' : 'bg-[#8b0000]'}`}></div>
-                <span className="text-xs text-[#2d2d2d] uppercase tracking-wide font-mono">
-                  {connected ? t('nav.live') : t('nav.offline')}
-                </span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 h-9 bg-gray-50 border border-[#2d2d2d]">
+                  <div className={`w-2 h-2 rounded-full ${connected ? 'bg-[#2d6d2d]' : 'bg-[#8b0000]'}`}></div>
+                  <span className="text-xs text-[#2d2d2d] uppercase tracking-wide font-mono">
+                    {connected ? t('nav.live') : t('nav.offline')}
+                  </span>
+                </div>
+                <select
+                  value={i18n.language}
+                  onChange={(e) => i18n.changeLanguage(e.target.value)}
+                  className="h-9 px-2 border border-[#2d2d2d] text-[#2d2d2d] bg-white text-xs uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#2d2d2d]"
+                >
+                  <option value="en">EN</option>
+                  <option value="de">DE</option>
+                </select>
               </div>
-              <select
-                value={i18n.language}
-                onChange={(e) => i18n.changeLanguage(e.target.value)}
-                className="h-9 px-2 border border-[#2d2d2d] text-[#2d2d2d] bg-white text-xs uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-[#2d2d2d]"
-              >
-                <option value="en">EN</option>
-                <option value="de">DE</option>
-              </select>
               <Button 
                 onClick={handleLogout} 
                 variant="outline" 
@@ -387,6 +468,90 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Daily Hourly Average Chart */}
+        <Card className="border-[#2d2d2d] bg-white shadow-sm">
+          <CardHeader className="border-b border-[#e5e5e5]">
+            <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
+              Tägliche Stundenmittelwerte
+            </CardTitle>
+            <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
+              Mittelwert der Partikelmasse pro Stunde (ab 0 Uhr)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {todayAverage && (
+              <div className="mb-6 p-4 bg-gray-50 border border-[#e5e5e5] rounded">
+                <h4 className="text-sm font-light text-[#2d2d2d] uppercase tracking-wider mb-3">Heutiger Tagesmittelwert</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM1.0</div>
+                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
+                      {todayAverage.pm1 != null ? todayAverage.pm1.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM2.5</div>
+                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
+                      {todayAverage.pm25 != null ? todayAverage.pm25.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM4.0</div>
+                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
+                      {todayAverage.pm4 != null ? todayAverage.pm4.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM10</div>
+                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
+                      {todayAverage.pm10 != null ? todayAverage.pm10.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="w-full overflow-x-auto">
+              <ChartContainer config={{ pm1: { color: "#2d2d2d" }, pm25: { color: "#666" }, pm4: { color: "#999" }, pm10: { color: "#ccc" } }} className="w-full min-w-[600px] h-[300px] md:h-[350px]">
+                <LineChart data={dailyHourlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                  <XAxis 
+                    dataKey="time" 
+                    tickFormatter={(timestamp) => {
+                      const date = new Date(timestamp);
+                      return date.toLocaleString('de-DE', { 
+                        day: '2-digit', 
+                        month: '2-digit',
+                        hour: '2-digit'
+                      });
+                    }}
+                    stroke="#666"
+                    style={{ fontSize: '11px', fontWeight: '300' }}
+                    minTickGap={50}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    stroke="#666"
+                    style={{ fontSize: '11px', fontWeight: '300' }}
+                    label={{ value: 'µg/m³', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300' }} />
+                  <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} connectNulls={false} name="PM1.0" />
+                  <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} connectNulls={false} name="PM2.5" />
+                  <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} connectNulls={false} name="PM4.0" />
+                  <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} connectNulls={false} name="PM10" />
+                </LineChart>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Partikel-Masse Verlauf (alle PM) */}
         <Card className="border-[#2d2d2d] bg-white shadow-sm">
           <CardHeader className="border-b border-[#e5e5e5]">
@@ -398,7 +563,8 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <ChartContainer config={{ pm1: { color: "#2d2d2d" }, pm25: { color: "#666" }, pm4: { color: "#999" }, pm10: { color: "#ccc" } }} className="w-full h-[300px] md:h-[350px]">
+            <div className="w-full overflow-x-auto">
+              <ChartContainer config={{ pm1: { color: "#2d2d2d" }, pm25: { color: "#666" }, pm4: { color: "#999" }, pm10: { color: "#ccc" } }} className="w-full min-w-[600px] h-[300px] md:h-[350px]">
               <LineChart data={historicalData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                 <XAxis 
@@ -424,6 +590,7 @@ export default function Dashboard() {
                 <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm10')} />
               </LineChart>
             </ChartContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -438,7 +605,8 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <ChartContainer config={{ pm1c: { color: "#2d6d2d" }, pm25c: { color: "#4d8d4d" }, pm10c: { color: "#6dad6d" } }} className="w-full h-[300px] md:h-[350px]">
+            <div className="w-full overflow-x-auto">
+              <ChartContainer config={{ pm1c: { color: "#2d6d2d" }, pm25c: { color: "#4d8d4d" }, pm10c: { color: "#6dad6d" } }} className="w-full min-w-[600px] h-[300px] md:h-[350px]">
               <LineChart data={historicalData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                 <XAxis 
@@ -463,6 +631,7 @@ export default function Dashboard() {
                 <Line type="monotone" dataKey="pm10_count_cm3" stroke="#6dad6d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.pm10Count')} />
               </LineChart>
             </ChartContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -477,7 +646,8 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <ChartContainer config={{ size: { color: "#2d2d2d" } }} className="w-full h-[250px] md:h-[300px]">
+            <div className="w-full overflow-x-auto">
+              <ChartContainer config={{ size: { color: "#2d2d2d" } }} className="w-full min-w-[600px] h-[250px] md:h-[300px]">
               <LineChart data={historicalData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                 <XAxis 
@@ -499,6 +669,7 @@ export default function Dashboard() {
                 <Line type="monotone" dataKey="typical_particle_size" stroke="#2d2d2d" strokeWidth={2} dot={false} connectNulls={false} name={t('chart.label.particleSize')} />
               </LineChart>
             </ChartContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -514,7 +685,8 @@ export default function Dashboard() {
             </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <ChartContainer config={{ temp: { color: "#8b4513" } }} className="w-full h-[200px] md:h-[250px]">
+              <div className="w-full overflow-x-auto">
+                <ChartContainer config={{ temp: { color: "#8b4513" } }} className="w-full min-w-[600px] h-[200px] md:h-[250px]">
                 <LineChart data={historicalData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                   <XAxis 
@@ -536,6 +708,7 @@ export default function Dashboard() {
                   <Line type="monotone" dataKey="temperature_C" stroke="#8b4513" strokeWidth={2} dot={false} connectNulls={false} />
                 </LineChart>
               </ChartContainer>
+              </div>
             </CardContent>
           </Card>
 
@@ -549,7 +722,8 @@ export default function Dashboard() {
             </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <ChartContainer config={{ humidity: { color: "#4682b4" } }} className="w-full h-[200px] md:h-[250px]">
+              <div className="w-full overflow-x-auto">
+                <ChartContainer config={{ humidity: { color: "#4682b4" } }} className="w-full min-w-[600px] h-[200px] md:h-[250px]">
                 <LineChart data={historicalData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                   <XAxis 
@@ -571,6 +745,7 @@ export default function Dashboard() {
                   <Line type="monotone" dataKey="humidity_rel" stroke="#4682b4" strokeWidth={2} dot={false} connectNulls={false} />
                 </LineChart>
               </ChartContainer>
+              </div>
             </CardContent>
           </Card>
         </div>
