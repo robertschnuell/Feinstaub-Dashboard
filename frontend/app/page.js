@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [appConfig, setAppConfig] = useState({ title: APP_TITLE, subtitle: APP_SUBTITLE });
   const [currentData, setCurrentData] = useState(null);
   const [historicalData, setHistoricalData] = useState([]);
+  const [todayData, setTodayData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
@@ -60,6 +61,7 @@ export default function Dashboard() {
 
     fetchCurrentData();
     fetchHistoricalData(selectedRange.hours);
+    fetchTodayData();
     
     const socket = io(BACKEND_URL);
     
@@ -181,6 +183,24 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTodayData = async () => {
+    try {
+      const token = localStorage.getItem('dashboard_token');
+      const response = await fetch(`${BACKEND_URL}/api/historical?hours=24`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Fehler beim Laden');
+      const data = await response.json();
+      const dataArray = Array.isArray(data) ? data : [];
+      const validData = dataArray.filter(entry => entry && entry.time);
+      setTodayData(validData);
+    } catch (err) {
+      console.error('Error loading today data:', err);
+    }
+  };
+
   const handleRangeChange = (range) => {
     setSelectedRange(range);
     fetchHistoricalData(range.hours);
@@ -279,8 +299,8 @@ export default function Dashboard() {
     };
   };
 
-  const dailyHourlyData = calculateDailyHourlyAverages(historicalData);
-  const todayAverage = calculateTodayAverage(historicalData);
+  const dailyHourlyData = calculateDailyHourlyAverages(todayData);
+  const todayAverage = calculateTodayAverage(todayData);
 
   // Prevent hydration mismatch - wait for client-side mount
   if (!mounted) {
@@ -449,6 +469,127 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Daily Hourly Average Chart */}
+        <Card className="border-[#2d2d2d] bg-white shadow-sm">
+          <CardHeader className="border-b border-[#e5e5e5]">
+            <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
+              {t('chart.dailyHourly.title')}
+            </CardTitle>
+            <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
+              {t('chart.dailyHourly.description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {todayAverage && (
+              <div className="mb-6 p-4 bg-gray-50 border border-[#e5e5e5] rounded">
+                <h4 className="text-sm font-light text-[#2d2d2d] uppercase tracking-wider mb-3">{t('chart.dailyHourly.todayAverage')}</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM1.0</div>
+                    <div className="text-2xl font-light font-mono" style={{
+                      color: todayAverage.pm1 <= 5 ? '#2d6d2d' : todayAverage.pm1 <= 15 ? '#d97706' : '#8b0000'
+                    }}>
+                      {todayAverage.pm1 != null ? todayAverage.pm1.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM2.5</div>
+                    <div className="text-2xl font-light font-mono" style={{
+                      color: todayAverage.pm25 <= 15 ? '#2d6d2d' : todayAverage.pm25 <= 25 ? '#d97706' : '#8b0000'
+                    }}>
+                      {todayAverage.pm25 != null ? todayAverage.pm25.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM4.0</div>
+                    <div className="text-2xl font-light font-mono" style={{
+                      color: todayAverage.pm4 <= 15 ? '#2d6d2d' : todayAverage.pm4 <= 45 ? '#d97706' : '#8b0000'
+                    }}>
+                      {todayAverage.pm4 != null ? todayAverage.pm4.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM10</div>
+                    <div className="text-2xl font-light font-mono" style={{
+                      color: todayAverage.pm10 <= 45 ? '#2d6d2d' : todayAverage.pm10 <= 50 ? '#d97706' : '#8b0000'
+                    }}>
+                      {todayAverage.pm10 != null ? todayAverage.pm10.toFixed(1) : '—'}
+                    </div>
+                    <div className="text-xs text-[#999]">µg/m³</div>
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-[#e5e5e5] text-xs text-[#666] flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: '#2d6d2d' }}></div>
+                    <span>{t('chart.dailyHourly.whoLimit')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: '#d97706' }}></div>
+                    <span>{t('chart.dailyHourly.euLimit')}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: '#8b0000' }}></div>
+                    <span>{t('chart.dailyHourly.exceeded')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="w-full overflow-x-auto">
+              <ChartContainer config={{ pm1: { color: "#2d2d2d" }, pm25: { color: "#666" }, pm4: { color: "#999" }, pm10: { color: "#ccc" } }} className="w-full min-w-[600px] h-[350px] md:h-[400px]">
+                <LineChart data={dailyHourlyData} margin={{ bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                  <XAxis 
+                    dataKey="time" 
+                    tickFormatter={(timestamp) => {
+                      const date = new Date(timestamp);
+                      const day = date.getDate().toString().padStart(2, '0');
+                      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                      const hour = date.getHours().toString().padStart(2, '0');
+                      return `${day}.${month} ${hour}h`;
+                    }}
+                    stroke="#666"
+                    style={{ fontSize: '10px', fontWeight: '300' }}
+                    interval="preserveStartEnd"
+                    minTickGap={60}
+                    angle={-45}
+                    textAnchor="end"
+                    height={70}
+                  />
+                  <YAxis 
+                    stroke="#666"
+                    style={{ fontSize: '11px', fontWeight: '300' }}
+                    label={{ value: 'µg/m³', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent />}
+                    labelFormatter={(timestamp) => {
+                      const date = new Date(timestamp);
+                      return date.toLocaleString('de-DE', { 
+                        day: '2-digit', 
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      });
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300', paddingTop: '10px' }} />
+                  <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} connectNulls={false} name="PM1.0" />
+                  <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} connectNulls={false} name="PM2.5" />
+                  <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} connectNulls={false} name="PM4.0" />
+                  <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} connectNulls={false} name="PM10" />
+                </LineChart>
+              </ChartContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Separator */}
+        <div className="border-t-2 border-[#2d2d2d] my-8"></div>
+
         {/* Zeitraum Auswahl */}
         <div className="flex flex-wrap gap-2">
           {TIME_RANGES.map((range) => (
@@ -467,90 +608,6 @@ export default function Dashboard() {
             </Button>
           ))}
         </div>
-
-        {/* Daily Hourly Average Chart */}
-        <Card className="border-[#2d2d2d] bg-white shadow-sm">
-          <CardHeader className="border-b border-[#e5e5e5]">
-            <CardTitle className="text-lg font-light text-[#2d2d2d] uppercase tracking-wider">
-              Tägliche Stundenmittelwerte
-            </CardTitle>
-            <CardDescription className="text-[#666] text-xs uppercase tracking-wide">
-              Mittelwert der Partikelmasse pro Stunde (ab 0 Uhr)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {todayAverage && (
-              <div className="mb-6 p-4 bg-gray-50 border border-[#e5e5e5] rounded">
-                <h4 className="text-sm font-light text-[#2d2d2d] uppercase tracking-wider mb-3">Heutiger Tagesmittelwert</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM1.0</div>
-                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
-                      {todayAverage.pm1 != null ? todayAverage.pm1.toFixed(1) : '—'}
-                    </div>
-                    <div className="text-xs text-[#999]">µg/m³</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM2.5</div>
-                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
-                      {todayAverage.pm25 != null ? todayAverage.pm25.toFixed(1) : '—'}
-                    </div>
-                    <div className="text-xs text-[#999]">µg/m³</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM4.0</div>
-                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
-                      {todayAverage.pm4 != null ? todayAverage.pm4.toFixed(1) : '—'}
-                    </div>
-                    <div className="text-xs text-[#999]">µg/m³</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-[#666] uppercase tracking-wide mb-1">PM10</div>
-                    <div className="text-2xl font-light text-[#2d2d2d] font-mono">
-                      {todayAverage.pm10 != null ? todayAverage.pm10.toFixed(1) : '—'}
-                    </div>
-                    <div className="text-xs text-[#999]">µg/m³</div>
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="w-full overflow-x-auto">
-              <ChartContainer config={{ pm1: { color: "#2d2d2d" }, pm25: { color: "#666" }, pm4: { color: "#999" }, pm10: { color: "#ccc" } }} className="w-full min-w-[600px] h-[300px] md:h-[350px]">
-                <LineChart data={dailyHourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                  <XAxis 
-                    dataKey="time" 
-                    tickFormatter={(timestamp) => {
-                      const date = new Date(timestamp);
-                      return date.toLocaleString('de-DE', { 
-                        day: '2-digit', 
-                        month: '2-digit',
-                        hour: '2-digit'
-                      });
-                    }}
-                    stroke="#666"
-                    style={{ fontSize: '11px', fontWeight: '300' }}
-                    minTickGap={50}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    stroke="#666"
-                    style={{ fontSize: '11px', fontWeight: '300' }}
-                    label={{ value: 'µg/m³', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend wrapperStyle={{ fontSize: '12px', fontWeight: '300' }} />
-                  <Line type="monotone" dataKey="pm1_mass_ugm3" stroke="#2d2d2d" strokeWidth={2} dot={false} connectNulls={false} name="PM1.0" />
-                  <Line type="monotone" dataKey="pm2_5_mass_ugm3" stroke="#666" strokeWidth={2} dot={false} connectNulls={false} name="PM2.5" />
-                  <Line type="monotone" dataKey="pm4_mass_ugm3" stroke="#999" strokeWidth={2} dot={false} connectNulls={false} name="PM4.0" />
-                  <Line type="monotone" dataKey="pm10_mass_ugm3" stroke="#ccc" strokeWidth={2} dot={false} connectNulls={false} name="PM10" />
-                </LineChart>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Partikel-Masse Verlauf (alle PM) */}
         <Card className="border-[#2d2d2d] bg-white shadow-sm">
@@ -686,7 +743,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="w-full overflow-x-auto">
-                <ChartContainer config={{ temp: { color: "#8b4513" } }} className="w-full min-w-[600px] h-[200px] md:h-[250px]">
+                <ChartContainer config={{ temp: { color: "#8b4513" } }} className="w-full min-w-[500px] h-[200px] md:h-[250px]">
                 <LineChart data={historicalData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                   <XAxis 
@@ -723,7 +780,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="w-full overflow-x-auto">
-                <ChartContainer config={{ humidity: { color: "#4682b4" } }} className="w-full min-w-[600px] h-[200px] md:h-[250px]">
+                <ChartContainer config={{ humidity: { color: "#4682b4" } }} className="w-full min-w-[500px] h-[200px] md:h-[250px]">
                 <LineChart data={historicalData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                   <XAxis 

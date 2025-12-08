@@ -60,6 +60,14 @@ const resources = {
       "chart.label.pm10Count": "PM10 Count",
       "chart.label.particleSize": "Particle Size",
       
+      // Daily hourly chart
+      "chart.dailyHourly.title": "Daily Hourly Averages",
+      "chart.dailyHourly.description": "Average particle mass per hour (from 0:00)",
+      "chart.dailyHourly.todayAverage": "Today's Daily Average",
+      "chart.dailyHourly.whoLimit": "WHO: PM2.5 ≤15 µg/m³ (daily) • PM10 ≤45 µg/m³ (daily)",
+      "chart.dailyHourly.euLimit": "EU: PM2.5 ≤25 µg/m³ (annual) • PM10 ≤50 µg/m³ (daily)",
+      "chart.dailyHourly.exceeded": "Limits exceeded",
+      
       // Footer
       "footer.lastUpdate": "Last update",
       "footer.dashboard": "Dashboard for monitoring the",
@@ -125,6 +133,14 @@ const resources = {
       "chart.label.pm25Count": "PM2.5 Anzahl",
       "chart.label.pm10Count": "PM10 Anzahl",
       "chart.label.particleSize": "Partikelgröße",
+      
+      // Daily hourly chart
+      "chart.dailyHourly.title": "Tägliche Stundenmittelwerte",
+      "chart.dailyHourly.description": "Mittelwert der Partikelmasse pro Stunde (ab 0 Uhr)",
+      "chart.dailyHourly.todayAverage": "Heutiger Tagesmittelwert",
+      "chart.dailyHourly.whoLimit": "WHO: PM2.5 ≤15 µg/m³ (Tagesmittel) • PM10 ≤45 µg/m³ (Tagesmittel)",
+      "chart.dailyHourly.euLimit": "EU: PM2.5 ≤25 µg/m³ (Jahresmittel) • PM10 ≤50 µg/m³ (Tagesmittel)",
+      "chart.dailyHourly.exceeded": "Grenzwerte überschritten",
       
       // Footer
       "footer.lastUpdate": "Letzte Aktualisierung",
