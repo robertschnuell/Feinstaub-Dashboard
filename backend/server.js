@@ -27,7 +27,14 @@ const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 const MQTT_TOPIC = process.env.MQTT_TOPIC;
 
 const dbPath = path.join(__dirname, 'feinstaub.db');
-const db = new Database(dbPath);
+console.log('📍 Opening database:', dbPath);
+
+// Open database with explicit write permissions
+const db = new Database(dbPath, { 
+  fileMustExist: false,
+  timeout: 5000
+});
+console.log('✅ Database connection established');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sensor_data (
@@ -139,24 +146,30 @@ mqttClient.on('message', (topic, message) => {
     const decoded = payload.uplink_message?.decoded_payload;
     if (!decoded) return;
     
-
-    insertData.run(
-      payload.received_at,
-      decoded.pm1_mass_ugm3,
-      decoded.pm2_5_mass_ugm3,
-      decoded.pm4_mass_ugm3,
-      decoded.pm10_mass_ugm3,
-      decoded.pm1_count_cm3,
-      decoded.pm2_5_count_cm3,
-      decoded.pm4_count_cm3,
-      decoded.pm10_count_cm3,
-      decoded.typical_particle_size,
-      decoded.temperature_C,
-      decoded.humidity_rel,
-      decoded.supply_voltage_V
-    );
-    
-    console.log('💾 Data saved to SQLite');
+    // Try to insert data with explicit error handling
+    try {
+      insertData.run(
+        payload.received_at,
+        decoded.pm1_mass_ugm3,
+        decoded.pm2_5_mass_ugm3,
+        decoded.pm4_mass_ugm3,
+        decoded.pm10_mass_ugm3,
+        decoded.pm1_count_cm3,
+        decoded.pm2_5_count_cm3,
+        decoded.pm4_count_cm3,
+        decoded.pm10_count_cm3,
+        decoded.typical_particle_size,
+        decoded.temperature_C,
+        decoded.humidity_rel,
+        decoded.supply_voltage_V
+      );
+      console.log('💾 Data saved to SQLite');
+    } catch (dbError) {
+      console.error('❌ Database insert failed:', dbError.message);
+      console.error('Error code:', dbError.code);
+      // Don't close the main db connection - just log the error
+      // The issue is likely permissions, not the connection itself
+    }
     
 
     currentDataCache = {
@@ -185,7 +198,12 @@ mqttClient.on('message', (topic, message) => {
     });
     console.log('📤 Update sent to WebSocket clients');
   } catch (error) {
-    console.error('❌ Error processing MQTT message:', error);
+    console.error('❌ Error processing MQTT message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error stack:', error.stack);
+    console.error('Database path:', dbPath);
+    console.error('Database open:', db.open);
+    console.error('Database readonly:', db.readonly);
   }
 });
 
@@ -336,14 +354,38 @@ app.get('/api/stats', authMiddleware, (req, res) => {
   }
 });
 
-// Health check (no auth)
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    mqtt_connected: mqttClient.connected,
-    uptime: process.uptime(),
-    db_connected: db.open,
-  });
+// Health check (no auth) - returns 200 only if everything is OK
+app.get('/api/health', (req, res) => {
+  try {
+    // Check database connectivity by trying a simple query
+    db.prepare('SELECT 1').get();
+    
+    // Check if MQTT is connected
+    if (!mqttClient.connected) {
+      return res.status(503).json({
+        status: 'degraded',
+        error: 'MQTT not connected',
+        mqtt_connected: false,
+        db_connected: true,
+      });
+    }
+    
+    // Everything OK
+    res.status(200).json({
+      status: 'ok',
+      mqtt_connected: true,
+      db_connected: true,
+      uptime: process.uptime(),
+    });
+  } catch (error) {
+    // Database error
+    res.status(503).json({
+      status: 'error',
+      error: error.message,
+      mqtt_connected: mqttClient.connected,
+      db_connected: false,
+    });
+  }
 });
 
 server.listen(PORT, () => {
@@ -352,10 +394,11 @@ server.listen(PORT, () => {
   console.log(`WebSocket available at ws://localhost:${PORT}`);
   console.log(`Auth required with password: ${DASHBOARD_PASSWORD}`);
   console.log('\nEndpoints:');
+  console.log('  POST /api/auth        - Authentication');
   console.log('  GET /api/current      - Current sensor data (auth)');
   console.log('  GET /api/historical   - Historical data (auth) (query: ?hours=24)');
   console.log('  GET /api/stats        - Statistics (auth)');
-  console.log('  GET /health           - Health check (public)');
+  console.log('  GET /api/health       - Health check (public)');
 });
 
 // Shutdown
