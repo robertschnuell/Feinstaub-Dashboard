@@ -65,13 +65,16 @@ function readUInt16BE(bytes, offset) {
 }
 
 function readInt32BE(bytes, offset) {
-  var value =
+  // Build as unsigned 32-bit first using >>> 0
+  var value = (
     (bytes[offset] << 24) |
     (bytes[offset + 1] << 16) |
     (bytes[offset + 2] << 8) |
-    bytes[offset + 3];
+    bytes[offset + 3]
+  ) >>> 0; // Force unsigned 32-bit conversion
 
-  if (value & 0x80000000) {
+  // Convert to signed 32-bit
+  if (value >= 0x80000000) {
     value = value - 0x100000000;
   }
   return value;
